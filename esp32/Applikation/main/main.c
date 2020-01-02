@@ -58,10 +58,10 @@ void app_main(void)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         GuiEvent_t guiEvent;
         guiEvent.lDataValue = i;
-        guiEvent.eDataID = 1;
+        guiEvent.eDataID = GUI_TEMP2_EVENT;
         xQueueSendToBack(xGuiEventQueue, &guiEvent, 0);
         vTaskDelay(500 / portTICK_PERIOD_MS);
-        guiEvent.eDataID = 0;
+        guiEvent.eDataID = GUI_TEMP1_EVENT;
         xQueueSendToBack(xGuiEventQueue, &guiEvent, 0);
     }
     printf("Restarting now.\n");

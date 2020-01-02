@@ -21,9 +21,14 @@
 
 static const char *TAG = "GUI";
 
+typedef enum {
+    GUI_TEMP1_EVENT,
+    GUI_TEMP2_EVENT
+} GuiEventID_t;
+
 typedef struct
 {
-    int eDataID;
+    GuiEventID_t eDataID;
     int32_t lDataValue;
 } GuiEvent_t;
 
@@ -71,12 +76,12 @@ void task_gui(void *EventQueue)
         char str[4];
         sprintf(str, "%*d", 3, lReceivedValue.lDataValue);
         u8g2_ClearBuffer(&u8g2);
-        if (lReceivedValue.eDataID == 0)
+        if (lReceivedValue.eDataID == GUI_TEMP1_EVENT)
         {
             u8g2_DrawStr(&u8g2, 32, 16, str);
             u8g2_UpdateDisplayArea(&u8g2, 4, 0, 4, 2);
         }
-        else if (lReceivedValue.eDataID == 1)
+        else if (lReceivedValue.eDataID == GUI_TEMP2_EVENT)
         {
             u8g2_DrawStr(&u8g2, 32, 32, str);
             u8g2_UpdateDisplayArea(&u8g2, 4, 2, 4, 2);
