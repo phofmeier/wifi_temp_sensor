@@ -14,6 +14,7 @@
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "../components/gui/gui.c"
+#include "../components/send_to_server/send_to_server.c"
 
 #ifdef CONFIG_IDF_TARGET_ESP32
 #define CHIP_NAME "ESP32"
@@ -45,7 +46,12 @@ void app_main(void)
            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
     printf("Start display\n");
-    xTaskCreate(task_gui, "Display",
+    xTaskCreate(task_gui, "GUI",
+                100000,
+                xGuiEventQueue, /* Parameter passed into the task. */
+                tskIDLE_PRIORITY + 2,
+                NULL);
+    xTaskCreate(task_send_to_server, "SendToServer",
                 100000,
                 xGuiEventQueue, /* Parameter passed into the task. */
                 tskIDLE_PRIORITY + 1,
