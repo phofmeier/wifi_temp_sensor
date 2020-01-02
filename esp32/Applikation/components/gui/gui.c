@@ -9,7 +9,7 @@
 
 #include "sdkconfig.h"
 #include "u8g2_esp32_hal.h"
-
+#define U8G2_16BIT
 // SDA - GPIO4
 #define PIN_SDA 4
 
@@ -37,14 +37,13 @@ void task_gui(void *EventQueue)
     u8g2_esp32_hal_init(u8g2_esp32_hal);
 
     u8g2_t u8g2; // a structure which will contain all the data for one display
-    u8g2_Setup_ssd1306_i2c_128x32_univision_f(
+    u8g2_Setup_ssd1306_i2c_128x64_noname_f(
         &u8g2,
         U8G2_R0,
         //u8x8_byte_sw_i2c,
         u8g2_esp32_i2c_byte_cb,
         u8g2_esp32_gpio_and_delay_cb); // init u8g2 structure
     u8x8_SetI2CAddress(&u8g2.u8x8, 0x78);
-
     ESP_LOGI(TAG, "u8g2_InitDisplay");
     u8g2_InitDisplay(&u8g2); // send init sequence to the display, display is in sleep mode after this,
 
@@ -58,8 +57,8 @@ void task_gui(void *EventQueue)
     // u8g2_SetFont(&u8g2, u8g2_font_ncenB12_tr);
     u8g2_SetFont(&u8g2, u8g2_font_crox1c_tf);
     ESP_LOGI(TAG, "u8g2_DrawDefaultStr");
-    u8g2_DrawStr(&u8g2, 0, 16, "T1:");
-    u8g2_DrawStr(&u8g2, 0, 32, "T2:");
+    u8g2_DrawUTF8(&u8g2, 0, 16, "T1:     °C");
+    u8g2_DrawUTF8(&u8g2, 0, 32, "T2:     °C");
     ESP_LOGI(TAG, "u8g2_SendBuffer");
     u8g2_SendBuffer(&u8g2);
 
@@ -70,7 +69,7 @@ void task_gui(void *EventQueue)
         xQueueReceive(xGuiEventQueue, &lReceivedValue, portMAX_DELAY);
         ESP_LOGI(TAG, "Event Arrived");
         char str[4];
-        sprintf(str, "%d", lReceivedValue.lDataValue);
+        sprintf(str, "%*d", 3, lReceivedValue.lDataValue);
         u8g2_ClearBuffer(&u8g2);
         if (lReceivedValue.eDataID == 0)
         {
