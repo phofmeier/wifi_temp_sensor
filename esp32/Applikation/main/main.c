@@ -58,7 +58,8 @@ void app_main(void)
                 NULL);
 
     printf("Display Test\n");
-    for (int32_t i = 200; i >= 0; i = i - 20)
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    for (int32_t i = 400; i >= 0; i = i - 20)
     {
         printf("Restarting in %d seconds...\n", i);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
