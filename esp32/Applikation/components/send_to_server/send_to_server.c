@@ -3,6 +3,8 @@
 #include <freertos/task.h>
 
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
 #include "freertos/event_groups.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
@@ -13,6 +15,7 @@
 #include "lwip/sys.h"
 #include "esp_http_client.h"
 #include "esp_tls.h"
+#include "esp_sntp.h"
 
 #define MAX_HTTP_RECV_BUFFER 512
 
@@ -113,7 +116,7 @@ void wifi_init_sntp(){
     sntp_setservername(0, "pool.ntp.org");
     sntp_init();
     setenv("TZ", "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00", 1);
-    tz_set();
+    tzset();
     
 }
 
@@ -136,6 +139,7 @@ void task_send_to_server(void *ignore)
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     ESP_LOGI(SendToServer_TAG, "Push to server");
     wifi_connectToHttp();
+    wifi_init_sntp();
 
     for (;;)
     {
