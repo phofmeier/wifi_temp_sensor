@@ -17,13 +17,10 @@
 #include "esp_tls.h"
 #include "esp_sntp.h"
 
+#include "wifi_config.h"
 #define MAX_HTTP_RECV_BUFFER 512
 
-
-#define EXAMPLE_ESP_WIFI_SSID      "WLAN-834HYV"
-#define EXAMPLE_ESP_WIFI_PASS      "2901870697233557"
 #define EXAMPLE_ESP_MAXIMUM_RETRY  10
-
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
