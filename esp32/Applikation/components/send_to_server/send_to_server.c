@@ -89,23 +89,18 @@ void wifi_init_sta(void)
              EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
 }
 
-void wifi_sendViaHttp() {
+void wifi_sendViaHttp(long long time, double value) {
     esp_http_client_config_t config = {
             .url = "http://192.168.2.104/saveData.php"
         };
     esp_http_client_handle_t client = esp_http_client_init(&config);
-//     const char *post_data = "time=223456&value=50";
     // Format value
-    double value = 123412341234.123456789; 
     char value_string[16];
     snprintf(value_string, 16, "%.2f", value);
     // Format Time
-    struct timeval te; 
-    gettimeofday(&te, NULL); // get current time
-    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds
     char time_string[40];
-    snprintf(time_string, 40, "%lld", milliseconds);
-    // printf("milliseconds: %lld\n", milliseconds);
+    snprintf(time_string, 40, "%lld", time);
+
     
     // char sendString[80] = "http://192.168.2.104/saveData.php?time=223456&value=50";
     char sendString[100] = "http://192.168.2.104/saveData.php?time=";
@@ -157,12 +152,17 @@ void task_send_to_server(void *ignore)
     wifi_init_sta();
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     ESP_LOGI(SendToServer_TAG, "Push to server");
-    wifi_sendViaHttp();
     wifi_init_sntp();
-
+    double value = 0.1;
     for (;;)
     {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        struct timeval te; 
+        gettimeofday(&te, NULL); // get current time
+        long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds        
+        wifi_sendViaHttp(milliseconds, value);
+        value=value+1;
+        
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
     
     vTaskDelete(NULL);
