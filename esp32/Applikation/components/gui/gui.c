@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <u8g2.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "sdkconfig.h"
 #include "u8g2_esp32_hal.h"
@@ -70,12 +72,26 @@ void task_gui(void *EventQueue)
     ESP_LOGI(TAG, "Initialization done!");
     for (;;)
     {
+        u8g2_ClearBuffer(&u8g2);
+        // Format Time
+        struct timeval tv; 
+        gettimeofday(&tv, NULL); // get current time
+        time_t nowtime = tv.tv_sec;
+        struct tm *nowtm = localtime(&nowtime);
+        char time_string[26];
+        strftime(time_string, sizeof time_string, "%d.%m.%Y %H:%M", nowtm);
+        u8g2_DrawStr(&u8g2, 0, 64, time_string);
+        u8g2_UpdateDisplayArea(&u8g2, 0, 6, 16, 2);
+        
         GuiEvent_t lReceivedValue;
-        xQueueReceive(xGuiEventQueue, &lReceivedValue, portMAX_DELAY);
+        if(!xQueueReceive(xGuiEventQueue, &lReceivedValue, pdMS_TO_TICKS(1000))){
+            ESP_LOGI(TAG, "Queue Time Out");
+            continue;    
+        };
         ESP_LOGI(TAG, "Event Arrived");
         char str[4];
         sprintf(str, "%*d", 3, lReceivedValue.lDataValue);
-        u8g2_ClearBuffer(&u8g2);
+        
         if (lReceivedValue.eDataID == GUI_TEMP1_EVENT)
         {
             u8g2_DrawStr(&u8g2, 32, 16, str);
@@ -88,7 +104,7 @@ void task_gui(void *EventQueue)
         }
         else
         {
-            ESP_LOGI(TAG, "Gui Event no Known");
+            ESP_LOGI(TAG, "Gui Event not Known");
         }
     }
 

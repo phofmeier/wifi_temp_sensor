@@ -24,6 +24,7 @@
 #define EXAMPLE_ESP_WIFI_PASS      "2901870697233557"
 #define EXAMPLE_ESP_MAXIMUM_RETRY  10
 
+
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
 
@@ -88,20 +89,38 @@ void wifi_init_sta(void)
              EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
 }
 
-void wifi_connectToHttp() {
-esp_http_client_config_t config = {
-        .url = "http://192.168.2.104/saveData.php"
-    };
+void wifi_sendViaHttp() {
+    esp_http_client_config_t config = {
+            .url = "http://192.168.2.104/saveData.php"
+        };
     esp_http_client_handle_t client = esp_http_client_init(&config);
-    const char *post_data = "time=223456&value=50";
-    esp_http_client_set_url(client, "http://192.168.2.104/saveData.php?time=223456&value=50");
+//     const char *post_data = "time=223456&value=50";
+    // Format value
+    double value = 123412341234.123456789; 
+    char value_string[16];
+    snprintf(value_string, 16, "%.2f", value);
+    // Format Time
+    struct timeval te; 
+    gettimeofday(&te, NULL); // get current time
+    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds
+    char time_string[40];
+    snprintf(time_string, 40, "%lld", milliseconds);
+    // printf("milliseconds: %lld\n", milliseconds);
+    
+    // char sendString[80] = "http://192.168.2.104/saveData.php?time=223456&value=50";
+    char sendString[100] = "http://192.168.2.104/saveData.php?time=";
+    strcat(sendString, time_string);
+    strcat(sendString, "&value=");
+    strcat(sendString, value_string);
+    esp_http_client_set_url(client, sendString);
     esp_http_client_set_method(client, HTTP_METHOD_GET);
-    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+    // esp_http_client_set_post_field(client, post_data, strlen(post_data));
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
         ESP_LOGI(SendToServer_TAG, "HTTP POST Status = %d, content_length = %d",
                 esp_http_client_get_status_code(client),
                 esp_http_client_get_content_length(client));
+        ESP_LOGI(SendToServer_TAG, "SendToServer URL: %s", sendString);
     } else {
         ESP_LOGE(SendToServer_TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
     }
@@ -138,7 +157,7 @@ void task_send_to_server(void *ignore)
     wifi_init_sta();
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     ESP_LOGI(SendToServer_TAG, "Push to server");
-    wifi_connectToHttp();
+    wifi_sendViaHttp();
     wifi_init_sntp();
 
     for (;;)

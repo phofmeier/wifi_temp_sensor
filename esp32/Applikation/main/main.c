@@ -73,6 +73,8 @@ void app_main(void)
     }
     printf("Restarting now.\n");
     fflush(stdout);
-
+    for(;;){
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    };
     esp_restart();
 }
