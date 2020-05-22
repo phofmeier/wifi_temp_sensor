@@ -15,6 +15,7 @@
 #include "esp_spi_flash.h"
 #include "../components/gui/gui.c"
 #include "../components/send_to_server/send_to_server.c"
+#include "../components/ntc_sensor/ntc_sensor.c"
 
 #ifdef CONFIG_IDF_TARGET_ESP32
 #define CHIP_NAME "ESP32"
@@ -59,6 +60,11 @@ void app_main(void)
                 100000,
                 xWifiSendEventQueue, /* Parameter passed into the task. */
                 tskIDLE_PRIORITY + 1,
+                NULL);
+    xTaskCreate(task_ntc_sensor, "NTC",
+                10000,
+                xWifiSendEventQueue, /* Parameter passed into the task. */
+                tskIDLE_PRIORITY + 3,
                 NULL);
 
     printf("Display Test\n");
