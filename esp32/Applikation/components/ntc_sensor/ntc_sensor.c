@@ -14,8 +14,8 @@
 #include "driver/adc.h"
 #include "esp_system.h"
 
-#define ADC2_EXAMPLE_CHANNEL 6
-#define ADC2_EXAMPLE_CHANNEL_2 7
+#define SENSOR_ADC_CHANNEL_1 6
+#define SENSOR_ADC_CHANNEL_2 7
 
 static const adc_bits_width_t width = ADC_WIDTH_BIT_12;
 static const char *NTC_TAG = "NTC";
@@ -23,32 +23,38 @@ static const char *NTC_TAG = "NTC";
 void task_ntc_sensor(void *ignore)
 {
     ESP_LOGI(NTC_TAG, "NTC Task Started");
-    uint8_t output_data = 0;
-    int read_raw;
+    
+    gpio_num_t adc_gpio_num_1, adc_gpio_num_2;
     esp_err_t r;
 
-    gpio_num_t adc_gpio_num;
-
-    r = adc1_pad_get_io_num(ADC2_EXAMPLE_CHANNEL, &adc_gpio_num);
-    printf(" Return: %d, GPIONUM: %d", r, adc_gpio_num);
-
+    r = adc1_pad_get_io_num(SENSOR_ADC_CHANNEL_1, &adc_gpio_num_1);
     assert(r == ESP_OK);
-
-    printf("ADC2 channel %d @ GPIO %d.\n", ADC2_EXAMPLE_CHANNEL, adc_gpio_num);
-
-    //be sure to do the init before using adc2.
-    printf("adc2_init...\n");
-    adc1_config_channel_atten(ADC2_EXAMPLE_CHANNEL, ADC_ATTEN_0db);
+    r = adc1_pad_get_io_num(SENSOR_ADC_CHANNEL_2, &adc_gpio_num_2);
+    assert(r == ESP_OK);
+    
+    // init
+    adc1_config_channel_atten(SENSOR_ADC_CHANNEL_1, ADC_ATTEN_0db);
+    adc1_config_channel_atten(SENSOR_ADC_CHANNEL_2, ADC_ATTEN_0db);
     adc1_config_width(width);
 
-    vTaskDelay(2 * portTICK_PERIOD_MS);
+    vTaskDelay(10 * portTICK_PERIOD_MS);
 
-    printf("start conversion.\n");
-    for (;;)
-    {
-        read_raw = adc1_get_raw(ADC2_EXAMPLE_CHANNEL);
-        printf("%d: %d\n", output_data, read_raw);
+    ESP_LOGI(NTC_TAG, "ADC initialized. Start reading.");
+    double sensor_value_mean_1 = 0;
+    double sensor_value_mean_2 = 0;
+    for (int i = 0;; i++)
+    {   
+        uint32_t reading =  adc1_get_raw(SENSOR_ADC_CHANNEL_1);
+        sensor_value_mean_1 = sensor_value_mean_1 + 0.1 * ((double)reading - sensor_value_mean_1);
+        reading =  adc1_get_raw(SENSOR_ADC_CHANNEL_2);
+        sensor_value_mean_2 = sensor_value_mean_2 + 0.1 * ((double)reading - sensor_value_mean_2);
         
-        vTaskDelay(2 * portTICK_PERIOD_MS);
+        if (i > 100)
+        {
+            printf("Sensor_1: %f Sensor_2: %f\n", sensor_value_mean_1, sensor_value_mean_2);
+            i = 0;
+        }
+        
+        vTaskDelay(1 * portTICK_PERIOD_MS);
     }
 }
