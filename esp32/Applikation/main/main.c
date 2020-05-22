@@ -13,8 +13,8 @@
 // #include "freertos/"
 #include "esp_system.h"
 #include "esp_spi_flash.h"
-#include "../components/gui/gui.c"
-#include "../components/send_to_server/send_to_server.c"
+// #include "../components/gui/gui.c"
+// #include "../components/send_to_server/send_to_server.c"
 #include "../components/ntc_sensor/ntc_sensor.c"
 
 #ifdef CONFIG_IDF_TARGET_ESP32
@@ -32,9 +32,11 @@ void app_main(void)
     xGuiEventQueue = xQueueCreate(5, sizeof(GuiEvent_t));
 
     QueueHandle_t xWifiSendEventQueue;
-    xWifiSendEventQueue = xQueueCreate(5, sizeof(WifiSendEvent_t));
+    xWifiSendEventQueue = xQueueCreate(20, sizeof(WifiSendEvent_t));
 
-    printf("Hello world!\n");
+    GuiWifiQueues_t xGuiWifiQueues;
+    xGuiWifiQueues.guiEvent = xGuiEventQueue;
+    xGuiWifiQueues.wifiSendEvent = xWifiSendEventQueue;
 
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -50,7 +52,6 @@ void app_main(void)
     printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
-    printf("Start display\n");
     xTaskCreate(task_gui, "GUI",
                 100000,
                 xGuiEventQueue, /* Parameter passed into the task. */
@@ -63,36 +64,12 @@ void app_main(void)
                 NULL);
     xTaskCreate(task_ntc_sensor, "NTC",
                 10000,
-                xWifiSendEventQueue, /* Parameter passed into the task. */
+                &xGuiWifiQueues, /* Parameter passed into the task. */
                 tskIDLE_PRIORITY + 3,
                 NULL);
 
-    printf("Display Test\n");
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
-    for (int32_t i = 400; i >= 0; i = i - 20)
-    {
-        printf("Restarting in %d seconds...\n", i);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        GuiEvent_t guiEvent;
-        guiEvent.lDataValue = i;
-        guiEvent.eDataID = GUI_TEMP2_EVENT;
-        xQueueSendToBack(xGuiEventQueue, &guiEvent, 0);
-
-        WifiSendEvent_t wifiEvent;
-        wifiEvent.eSensorId = SENSOR_1;
-        struct timeval te; 
-        gettimeofday(&te, NULL);
-        wifiEvent.lTimestamp = te.tv_sec*1000LL + te.tv_usec/1000;
-        wifiEvent.lValue = (double)i;
-        xQueueSendToBack(xWifiSendEventQueue, &wifiEvent, 0);
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-        guiEvent.eDataID = GUI_TEMP1_EVENT;
-        xQueueSendToBack(xGuiEventQueue, &guiEvent, 0);
-    }
-    printf("Restarting now.\n");
-    fflush(stdout);
     for(;;){
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(100000 / portTICK_PERIOD_MS);
     };
     esp_restart();
 }

@@ -13,6 +13,8 @@
 #include "driver/gpio.h"
 #include "driver/adc.h"
 #include "esp_system.h"
+#include "../send_to_server/send_to_server.c"
+#include "../gui/gui.c"
 
 #define SENSOR_ADC_CHANNEL_1 6
 #define SENSOR_ADC_CHANNEL_2 7
@@ -20,9 +22,19 @@
 static const adc_bits_width_t width = ADC_WIDTH_BIT_12;
 static const char *NTC_TAG = "NTC";
 
-void task_ntc_sensor(void *ignore)
+typedef struct
 {
+    QueueHandle_t guiEvent;
+    QueueHandle_t wifiSendEvent;
+} GuiWifiQueues_t;
+
+void task_ntc_sensor(void *EventQueue)
+{
+    GuiWifiQueues_t * queues;
+    queues = EventQueue;
     ESP_LOGI(NTC_TAG, "NTC Task Started");
+    QueueHandle_t xWifiSendEventQueue = queues->wifiSendEvent;
+    QueueHandle_t xGuiEventQueue = queues->guiEvent;
     
     gpio_num_t adc_gpio_num_1, adc_gpio_num_2;
     esp_err_t r;
@@ -37,7 +49,7 @@ void task_ntc_sensor(void *ignore)
     adc1_config_channel_atten(SENSOR_ADC_CHANNEL_2, ADC_ATTEN_0db);
     adc1_config_width(width);
 
-    vTaskDelay(10 * portTICK_PERIOD_MS);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     ESP_LOGI(NTC_TAG, "ADC initialized. Start reading.");
     double sensor_value_mean_1 = 0;
@@ -48,6 +60,15 @@ void task_ntc_sensor(void *ignore)
 
      // Initialise the xLastWakeTime variable with the current time.
     xLastWakeTime = xTaskGetTickCount();
+    WifiSendEvent_t wifiEvent_s1;
+    WifiSendEvent_t wifiEvent_s2;
+    wifiEvent_s1.eSensorId = SENSOR_1;
+    wifiEvent_s2.eSensorId = SENSOR_2;
+    GuiEvent_t gui_event_s1;
+    GuiEvent_t gui_event_s2;
+    gui_event_s1.eDataID = GUI_TEMP1_EVENT;
+    gui_event_s2.eDataID = GUI_TEMP2_EVENT;
+    
     for (int i = 0;; i++)
     {   
         uint32_t reading =  adc1_get_raw(SENSOR_ADC_CHANNEL_1);
@@ -55,9 +76,24 @@ void task_ntc_sensor(void *ignore)
         reading =  adc1_get_raw(SENSOR_ADC_CHANNEL_2);
         sensor_value_mean_2 = sensor_value_mean_2 + 0.1 * ((double)reading - sensor_value_mean_2);
         
-        if (i >= 100)
+        if (i >= 1000)
         {
-            printf("Sensor_1: %f Sensor_2: %f\n", sensor_value_mean_1, sensor_value_mean_2);
+            struct timeval te; 
+            gettimeofday(&te, NULL);
+            long long ts_ms = te.tv_sec*1000LL + te.tv_usec/1000;
+            wifiEvent_s1.lTimestamp = ts_ms;
+            wifiEvent_s1.lValue = sensor_value_mean_1;
+            xQueueSendToBack(xWifiSendEventQueue, &wifiEvent_s1, 0);
+            wifiEvent_s2.lTimestamp = ts_ms;
+            wifiEvent_s2.lValue = sensor_value_mean_2;
+            xQueueSendToBack(xWifiSendEventQueue, &wifiEvent_s2, 0);
+            
+            gui_event_s1.lDataValue = sensor_value_mean_1;
+            gui_event_s2.lDataValue = sensor_value_mean_2;
+            xQueueSendToBack(xGuiEventQueue, &gui_event_s1, 0);
+            xQueueSendToBack(xGuiEventQueue, &gui_event_s2, 0);
+
+            printf("ts : %lld S_1: %f S_2: %f\n", ts_ms, sensor_value_mean_1, sensor_value_mean_2);
             i = 0;
         }
         
