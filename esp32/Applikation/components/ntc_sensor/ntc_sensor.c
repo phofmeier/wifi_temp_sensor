@@ -42,6 +42,12 @@ void task_ntc_sensor(void *ignore)
     ESP_LOGI(NTC_TAG, "ADC initialized. Start reading.");
     double sensor_value_mean_1 = 0;
     double sensor_value_mean_2 = 0;
+
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = 10 / portTICK_PERIOD_MS;
+
+     // Initialise the xLastWakeTime variable with the current time.
+    xLastWakeTime = xTaskGetTickCount();
     for (int i = 0;; i++)
     {   
         uint32_t reading =  adc1_get_raw(SENSOR_ADC_CHANNEL_1);
@@ -49,12 +55,12 @@ void task_ntc_sensor(void *ignore)
         reading =  adc1_get_raw(SENSOR_ADC_CHANNEL_2);
         sensor_value_mean_2 = sensor_value_mean_2 + 0.1 * ((double)reading - sensor_value_mean_2);
         
-        if (i > 100)
+        if (i >= 100)
         {
             printf("Sensor_1: %f Sensor_2: %f\n", sensor_value_mean_1, sensor_value_mean_2);
             i = 0;
         }
         
-        vTaskDelay(1 * portTICK_PERIOD_MS);
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
 }
