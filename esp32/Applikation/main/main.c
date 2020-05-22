@@ -26,8 +26,12 @@
 
 void app_main(void)
 {
+    // initialize Event Queues
     QueueHandle_t xGuiEventQueue;
     xGuiEventQueue = xQueueCreate(5, sizeof(GuiEvent_t));
+
+    QueueHandle_t xWifiSendEventQueue;
+    xWifiSendEventQueue = xQueueCreate(5, sizeof(WifiSendEvent_t));
 
     printf("Hello world!\n");
 
@@ -53,7 +57,7 @@ void app_main(void)
                 NULL);
     xTaskCreate(task_send_to_server, "SendToServer",
                 100000,
-                xGuiEventQueue, /* Parameter passed into the task. */
+                xWifiSendEventQueue, /* Parameter passed into the task. */
                 tskIDLE_PRIORITY + 1,
                 NULL);
 
@@ -67,6 +71,14 @@ void app_main(void)
         guiEvent.lDataValue = i;
         guiEvent.eDataID = GUI_TEMP2_EVENT;
         xQueueSendToBack(xGuiEventQueue, &guiEvent, 0);
+
+        WifiSendEvent_t wifiEvent;
+        wifiEvent.eSensorId = SENSOR_1;
+        struct timeval te; 
+        gettimeofday(&te, NULL);
+        wifiEvent.lTimestamp = te.tv_sec*1000LL + te.tv_usec/1000;
+        wifiEvent.lValue = (double)i;
+        xQueueSendToBack(xWifiSendEventQueue, &wifiEvent, 0);
         vTaskDelay(500 / portTICK_PERIOD_MS);
         guiEvent.eDataID = GUI_TEMP1_EVENT;
         xQueueSendToBack(xGuiEventQueue, &guiEvent, 0);

@@ -22,6 +22,19 @@
 
 #define EXAMPLE_ESP_MAXIMUM_RETRY  10
 
+typedef enum
+{
+    SENSOR_1 = 0,
+    SENSOR_2 = 1
+} SensorID_t;
+
+typedef struct
+{
+    SensorID_t eSensorId;
+    long long lTimestamp;
+    double lValue;
+} WifiSendEvent_t;
+
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
 
@@ -86,7 +99,7 @@ void wifi_init_sta(void)
              EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
 }
 
-void wifi_sendViaHttp(long long time, double value) {
+void wifi_sendViaHttp(int sensorID, long long time, double value) {
     esp_http_client_config_t config = {
             .url = "http://192.168.2.104/saveData.php"
         };
@@ -105,7 +118,7 @@ void wifi_sendViaHttp(long long time, double value) {
     strcat(sendString, "&value=");
     strcat(sendString, value_string);
     esp_http_client_set_url(client, sendString);
-    esp_http_client_set_method(client, HTTP_METHOD_GET);
+    // esp_http_client_set_method(client, HTTP_METHOD_GET);
     // esp_http_client_set_post_field(client, post_data, strlen(post_data));
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
@@ -133,8 +146,9 @@ void wifi_init_sntp(){
 
 
 
-void task_send_to_server(void *ignore)
+void task_send_to_server(void *EventQueue)
 {
+    QueueHandle_t xWifiSendEventQueue = EventQueue;
     ESP_LOGI(SendToServer_TAG, "SendToServer started");
 
     //Initialize NVS
@@ -150,16 +164,17 @@ void task_send_to_server(void *ignore)
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     ESP_LOGI(SendToServer_TAG, "Push to server");
     wifi_init_sntp();
-    double value = 0.1;
     for (;;)
     {
-        struct timeval te; 
-        gettimeofday(&te, NULL); // get current time
-        long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds        
-        wifi_sendViaHttp(milliseconds, value);
-        value=value+1;
-        
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        WifiSendEvent_t lWifiSendEvent;
+
+        if (!xQueueReceive(xWifiSendEventQueue, &lWifiSendEvent, portMAX_DELAY))
+        {
+            ESP_LOGI(SendToServer_TAG, "Queue Time Out");
+            continue;
+        }  
+        // TODO: Check if wifi connected and send properly
+        wifi_sendViaHttp(lWifiSendEvent.eSensorId, lWifiSendEvent.lTimestamp, lWifiSendEvent.lValue);
     }
     
     vTaskDelete(NULL);
