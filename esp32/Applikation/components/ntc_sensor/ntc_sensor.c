@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <esp_log.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -21,12 +22,26 @@
 
 static const adc_bits_width_t width = ADC_WIDTH_BIT_12;
 static const char *NTC_TAG = "NTC";
+// Model Parameter
+static const double R_N = 100e3;
+static const double T_N = 298.15;
+static const double U_ges = 3.3;
+static const double B = 3.741987e3;
+static const double R_1 = 22e3;
 
 typedef struct
 {
     QueueHandle_t guiEvent;
     QueueHandle_t wifiSendEvent;
 } GuiWifiQueues_t;
+
+double tempFromADC(double adc_value)
+{
+    double U_meas = U_ges / 4096 * adc_value;
+    double R_NTC = U_meas * R_1 / (U_ges - U_meas);
+    double T_kelvin = 1 / (log(R_NTC / R_N) / B + 1 / T_N);
+    return T_kelvin - 273.15;
+}
 
 void task_ntc_sensor(void *EventQueue)
 {
@@ -74,8 +89,8 @@ void task_ntc_sensor(void *EventQueue)
         sensor_value_mean_2 = sensor_value_mean_2 + 0.1 * ((double)reading - sensor_value_mean_2);
         
         if ((i % 50) == 0){
-            gui_event_s1.lDataValue = sensor_value_mean_1;
-            gui_event_s2.lDataValue = sensor_value_mean_2;
+            gui_event_s1.lDataValue = tempFromADC(sensor_value_mean_1);
+            gui_event_s2.lDataValue = tempFromADC(sensor_value_mean_2);
             xQueueSendToBack(xGuiEventQueue, &gui_event_s1, 0);
             xQueueSendToBack(xGuiEventQueue, &gui_event_s2, 0);
         }
@@ -91,7 +106,6 @@ void task_ntc_sensor(void *EventQueue)
             wifiEvent_sensor.lValueSensor2 = sensor_value_mean_2;
             xQueueSendToBack(xWifiSendEventQueue, &wifiEvent_sensor, 0);
            
-            printf("ts : %lld S_1: %f S_2: %f\n", ts_ms, sensor_value_mean_1, sensor_value_mean_2);
             i = 0;
         }
         

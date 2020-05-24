@@ -11,6 +11,14 @@ def U_meas(U_ges, R_1, R_2):
 
     return U_ges/(R_1+R_2) * R_2
 
+def Temp(U_meas, R_1, U_ges, B, R_N, T_N):
+    R_NTC = U_meas * R_1 / (U_ges - U_meas)
+    T_kelvin = 1 / (np.log(R_NTC / R_N) / B + 1 / T_N)
+    return T_kelvin - 273.15
+
+def Temp_adc(adc_value, R_1, U_ges, B, R_N, T_N):
+    return Temp(U_ges/4096 * adc_value, R_1, U_ges, B, R_N, T_N)
+
 # define measurements constants
 
 R_measured = [103e3, 120e3, 70e3, 15.2e3]
@@ -76,4 +84,42 @@ plt.vlines(T_Nenn_C, U_range.min(), U_range.max())
 plt.xlabel("Temp [Grad]")
 plt.ylabel("U [V]")
 plt.legend()
+
+# Calibrate Sensor
+
+# measurements
+adc_val_measured = [20, 50, 150, 300, 475, 890, 768, 555, 1000, 2000, 4000]
+T_measured = []
+for val in adc_val_measured:
+    T_measured.append(Temp_adc(val, 22e3, 3.3, 3.741987e3, 100e3, 298.15))
+
+B_sym = cas.SX.sym("B")
+R1_sym = cas.SX.sym("R1")
+Rn_sym = cas.SX.sym("Rn")
+Tn_sym = cas.SX.sym("Tn")
+syms = cas.vertcat(B_sym, R1_sym, Rn_sym, Tn_sym)
+x0 = [B, 22e3, 100e3, T_N]
+f = 0
+for T, adc_val in zip(T_measured, adc_val_measured):
+    f += (T-Temp_adc(adc_val, R1_sym, U_ges, B_sym, Rn_sym, Tn_sym))**2
+
+nlp = {'x': syms, 'f': f}
+S = cas.nlpsol('S', 'ipopt', nlp)
+res = S(x0=x0)
+
+B = res['x'].full()[0]
+R1 = res['x'].full()[1]
+Rn = res['x'].full()[2]
+Tn = res['x'].full()[3]
+
+print("B:", B, "R1:", R1, "Rn:", Rn, "Tn:", Tn)
+
+plt.figure()
+adc_range = np.array(range(min(adc_val_measured), max(adc_val_measured)))
+plt.plot(adc_range, Temp_adc(adc_range, R1, U_ges, B, Rn, Tn))
+plt.plot(adc_val_measured, T_measured, 'x')
+plt.xlabel("ADC value")
+plt.ylabel("Temp [Grad]")
+
+
 plt.show()
