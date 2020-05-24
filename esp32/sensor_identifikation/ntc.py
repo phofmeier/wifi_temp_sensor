@@ -115,11 +115,11 @@ Tn = res['x'].full()[3]
 print("B:", B, "R1:", R1, "Rn:", Rn, "Tn:", Tn)
 
 plt.figure()
-adc_range = np.array(range(min(adc_val_measured), max(adc_val_measured)))
-plt.plot(adc_range, Temp_adc(adc_range, R1, U_ges, B, Rn, Tn))
-plt.plot(adc_val_measured, T_measured, 'x')
+adc_range = np.array(range(min(adc_val_measured)-1, max(adc_val_measured)+1))
+plt.plot(adc_range, Temp_adc(adc_range, R1, U_ges, B, Rn, Tn), label="Fitted Model")
+plt.plot(adc_val_measured, T_measured, 'x', label="Measured")
 plt.xlabel("ADC value")
 plt.ylabel("Temp [Grad]")
-
+plt.legend()
 
 plt.show()
