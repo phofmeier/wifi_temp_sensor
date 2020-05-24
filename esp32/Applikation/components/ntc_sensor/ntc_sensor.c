@@ -60,10 +60,7 @@ void task_ntc_sensor(void *EventQueue)
 
      // Initialise the xLastWakeTime variable with the current time.
     xLastWakeTime = xTaskGetTickCount();
-    WifiSendEvent_t wifiEvent_s1;
-    WifiSendEvent_t wifiEvent_s2;
-    wifiEvent_s1.eSensorId = SENSOR_1;
-    wifiEvent_s2.eSensorId = SENSOR_2;
+    WifiSendEvent_t wifiEvent_sensor;
     GuiEvent_t gui_event_s1;
     GuiEvent_t gui_event_s2;
     gui_event_s1.eDataID = GUI_TEMP1_EVENT;
@@ -76,23 +73,24 @@ void task_ntc_sensor(void *EventQueue)
         reading =  adc1_get_raw(SENSOR_ADC_CHANNEL_2);
         sensor_value_mean_2 = sensor_value_mean_2 + 0.1 * ((double)reading - sensor_value_mean_2);
         
-        if (i >= 1000)
-        {
-            struct timeval te; 
-            gettimeofday(&te, NULL);
-            long long ts_ms = te.tv_sec*1000LL + te.tv_usec/1000;
-            wifiEvent_s1.lTimestamp = ts_ms;
-            wifiEvent_s1.lValue = sensor_value_mean_1;
-            xQueueSendToBack(xWifiSendEventQueue, &wifiEvent_s1, 0);
-            wifiEvent_s2.lTimestamp = ts_ms;
-            wifiEvent_s2.lValue = sensor_value_mean_2;
-            xQueueSendToBack(xWifiSendEventQueue, &wifiEvent_s2, 0);
-            
+        if ((i % 50) == 0){
             gui_event_s1.lDataValue = sensor_value_mean_1;
             gui_event_s2.lDataValue = sensor_value_mean_2;
             xQueueSendToBack(xGuiEventQueue, &gui_event_s1, 0);
             xQueueSendToBack(xGuiEventQueue, &gui_event_s2, 0);
+        }
 
+        if (i >= 1000)
+        {
+            // TODO(peter) send both data values together
+            struct timeval te; 
+            gettimeofday(&te, NULL);
+            long long ts_ms = te.tv_sec*1000LL + te.tv_usec/1000;
+            wifiEvent_sensor.lTimestamp = ts_ms;
+            wifiEvent_sensor.lValueSensor1 = sensor_value_mean_1;
+            wifiEvent_sensor.lValueSensor2 = sensor_value_mean_2;
+            xQueueSendToBack(xWifiSendEventQueue, &wifiEvent_sensor, 0);
+           
             printf("ts : %lld S_1: %f S_2: %f\n", ts_ms, sensor_value_mean_1, sensor_value_mean_2);
             i = 0;
         }

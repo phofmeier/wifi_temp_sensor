@@ -22,17 +22,11 @@
 
 #define EXAMPLE_ESP_MAXIMUM_RETRY  10
 
-typedef enum
-{
-    SENSOR_1 = 0,
-    SENSOR_2 = 1
-} SensorID_t;
-
 typedef struct
 {
-    SensorID_t eSensorId;
     long long lTimestamp;
-    double lValue;
+    double lValueSensor1;
+    double lValueSensor2;
 } WifiSendEvent_t;
 
 /* FreeRTOS event group to signal when we are connected*/
@@ -99,24 +93,28 @@ void wifi_init_sta(void)
              EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
 }
 
-void wifi_sendViaHttp(int sensorID, long long time, double value) {
+void wifi_sendViaHttp(WifiSendEvent_t sendEvent) {
     esp_http_client_config_t config = {
             .url = "http://192.168.2.104/saveData.php"
         };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     // Format value
-    char value_string[16];
-    snprintf(value_string, 16, "%.2f", value);
+    char value_string_1[16];
+    snprintf(value_string_1, 16, "%.2f", sendEvent.lValueSensor1);
+    char value_string_2[16];
+    snprintf(value_string_2, 16, "%.2f", sendEvent.lValueSensor2);
     // Format Time
     char time_string[40];
-    snprintf(time_string, 40, "%lld", time);
+    snprintf(time_string, 40, "%lld", sendEvent.lTimestamp);
 
     
     // char sendString[80] = "http://192.168.2.104/saveData.php?time=223456&value=50";
     char sendString[100] = "http://192.168.2.104/saveData.php?time=";
     strcat(sendString, time_string);
-    strcat(sendString, "&value=");
-    strcat(sendString, value_string);
+    strcat(sendString, "&value1=");
+    strcat(sendString, value_string_1);
+    strcat(sendString, "&value2=");
+    strcat(sendString, value_string_2);
     esp_http_client_set_url(client, sendString);
     // esp_http_client_set_method(client, HTTP_METHOD_GET);
     // esp_http_client_set_post_field(client, post_data, strlen(post_data));
@@ -174,7 +172,7 @@ void task_send_to_server(void *EventQueue)
             continue;
         }  
         // TODO: Check if wifi connected and send properly
-        wifi_sendViaHttp(lWifiSendEvent.eSensorId, lWifiSendEvent.lTimestamp, lWifiSendEvent.lValue);
+        wifi_sendViaHttp(lWifiSendEvent);
     }
     
     vTaskDelete(NULL);
