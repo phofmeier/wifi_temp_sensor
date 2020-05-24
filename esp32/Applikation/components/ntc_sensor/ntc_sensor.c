@@ -49,7 +49,7 @@ void task_ntc_sensor(void *EventQueue)
     adc1_config_channel_atten(SENSOR_ADC_CHANNEL_2, ADC_ATTEN_0db);
     adc1_config_width(width);
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(10000 / portTICK_PERIOD_MS);
 
     ESP_LOGI(NTC_TAG, "ADC initialized. Start reading.");
     double sensor_value_mean_1 = 0;
@@ -80,7 +80,7 @@ void task_ntc_sensor(void *EventQueue)
             xQueueSendToBack(xGuiEventQueue, &gui_event_s2, 0);
         }
 
-        if (i >= 1000)
+        if (i >= 500)
         {
             // TODO(peter) send both data values together
             struct timeval te; 
