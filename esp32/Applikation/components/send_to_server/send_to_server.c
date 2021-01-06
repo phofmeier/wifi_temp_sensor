@@ -109,7 +109,7 @@ void wifi_sendViaHttp(WifiSendEvent_t sendEvent) {
 
     
     // char sendString[80] = "http://192.168.2.104/saveData.php?time=223456&value=50";
-    char sendString[100] = "http://192.168.2.104/saveData.php?time=";
+    char sendString[100] = "http://192.168.2.103/saveData.php?time=";
     strcat(sendString, time_string);
     strcat(sendString, "&value1=");
     strcat(sendString, value_string_1);

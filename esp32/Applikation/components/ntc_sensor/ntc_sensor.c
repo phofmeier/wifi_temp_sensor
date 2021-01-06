@@ -60,10 +60,10 @@ void task_ntc_sensor(void *EventQueue)
     assert(r == ESP_OK);
     
     // init
-    adc1_config_channel_atten(SENSOR_ADC_CHANNEL_1, ADC_ATTEN_0db);
-    adc1_config_channel_atten(SENSOR_ADC_CHANNEL_2, ADC_ATTEN_0db);
+    adc1_config_channel_atten(SENSOR_ADC_CHANNEL_1, ADC_ATTEN_11db);
+    adc1_config_channel_atten(SENSOR_ADC_CHANNEL_2, ADC_ATTEN_11db);
     adc1_config_width(width);
-
+    
     vTaskDelay(10000 / portTICK_PERIOD_MS);
 
     ESP_LOGI(NTC_TAG, "ADC initialized. Start reading.");
