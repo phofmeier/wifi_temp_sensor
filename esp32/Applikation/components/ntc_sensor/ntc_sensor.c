@@ -27,10 +27,10 @@ static const adc_atten_t atten = ADC_ATTEN_DB_11;
 static esp_adc_cal_characteristics_t *adc_chars;
 static const char *NTC_TAG = "NTC";
 // Model Parameter
-static const double R_N = 100e3;
-static const double T_N = 298.15;
+static const double R_N = 103000.00020001;
+static const double T_N = 299.11105642;
 static const double U_ges = 3.3;
-static const double B = 3.741987e3;
+static const double B = 4173.7039348;
 static const double R_1 = 24.9e3;
 
 typedef struct
