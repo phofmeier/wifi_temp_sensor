@@ -20,7 +20,7 @@
 #include "wifi_config.h"
 #define MAX_HTTP_RECV_BUFFER 512
 
-#define EXAMPLE_ESP_MAXIMUM_RETRY  10
+#define EXAMPLE_ESP_MAXIMUM_RETRY 10
 
 typedef struct
 {
@@ -41,21 +41,27 @@ static const char *SendToServer_TAG = "SendToServer";
 
 static int s_retry_num = 0;
 
-static void event_handler(void* arg, esp_event_base_t event_base, 
-                                int32_t event_id, void* event_data)
+static void event_handler(void *arg, esp_event_base_t event_base,
+                          int32_t event_id, void *event_data)
 {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
+    {
         esp_wifi_connect();
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
+    }
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
+    {
+        if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY)
+        {
             esp_wifi_connect();
             xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             s_retry_num++;
             ESP_LOGI(SendToServer_TAG, "retry to connect to the AP");
         }
-        ESP_LOGI(SendToServer_TAG,"connect to the AP fail");
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        ESP_LOGI(SendToServer_TAG, "connect to the AP fail");
+    }
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
+    {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(SendToServer_TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
@@ -74,29 +80,27 @@ void wifi_init_sta(void)
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
 
     wifi_config_t wifi_config = {
         .sta = {
             .ssid = EXAMPLE_ESP_WIFI_SSID,
-            .password = EXAMPLE_ESP_WIFI_PASS
-        },
+            .password = EXAMPLE_ESP_WIFI_PASS},
     };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
-    ESP_ERROR_CHECK(esp_wifi_start() );
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(SendToServer_TAG, "wifi_init_sta finished.");
     ESP_LOGI(SendToServer_TAG, "connect to ap SSID:%s password:%s",
              EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
 }
 
-void wifi_sendViaHttp(WifiSendEvent_t sendEvent) {
+void wifi_sendViaHttp(WifiSendEvent_t sendEvent)
+{
     esp_http_client_config_t config = {
-            .url = "http://192.168.2.103:8080/telegraf"
-        };
+        .url = "http://192.168.2.103:8080/telegraf"};
     esp_http_client_handle_t client = esp_http_client_init(&config);
     // Format value
     char value_string_1[16];
@@ -106,11 +110,12 @@ void wifi_sendViaHttp(WifiSendEvent_t sendEvent) {
     // Format Time
     bool time_valid = false;
     char time_string[40];
-    if(sendEvent.lTimestamp > 1000000000) {
-    snprintf(time_string, 40, "%lld", sendEvent.lTimestamp);
-    time_valid = true;
+    if (sendEvent.lTimestamp > 1000000000)
+    {
+        snprintf(time_string, 40, "%lld", sendEvent.lTimestamp);
+        time_valid = true;
     }
-    
+
     // char sendString[80] = "http://192.168.2.104/saveData.php?time=223456&value=50";
     //char sendString[100] = "http://192.168.2.103/saveData.php?time=";
     char url[35] = "http://192.168.2.103:8080/telegraf";
@@ -123,45 +128,47 @@ void wifi_sendViaHttp(WifiSendEvent_t sendEvent) {
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     char data[160] = "Measurement,device=TempSens,Sensor=1 value=";
     strcat(data, value_string_1);
-    if(time_valid){
-    strcat(data, " ");
-    strcat(data, time_string);
-    strcat(data, "000");
+    if (time_valid)
+    {
+        strcat(data, " ");
+        strcat(data, time_string);
+        strcat(data, "000");
     }
     strcat(data, "\nMeasurement,device=TempSens,Sensor=2 value=");
     strcat(data, value_string_2);
-    if(time_valid) {
-    strcat(data, " ");
-    strcat(data, time_string);
-    strcat(data, "000");
+    if (time_valid)
+    {
+        strcat(data, " ");
+        strcat(data, time_string);
+        strcat(data, "000");
     }
     esp_http_client_set_post_field(client, data, strlen(data));
     esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(SendToServer_TAG, "HTTP POST Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
         ESP_LOGI(SendToServer_TAG, "SendToServer URL: %s", url);
         ESP_LOGI(SendToServer_TAG, "SendToServer Data: %s", data);
-    } else {
+    }
+    else
+    {
         ESP_LOGE(SendToServer_TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
     }
 
-    
     esp_http_client_cleanup(client);
 }
 
-void wifi_init_sntp(){
+void wifi_init_sntp()
+{
     ESP_LOGI(SendToServer_TAG, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_setservername(0, "pool.ntp.org");
     sntp_init();
     setenv("TZ", "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00", 1);
     tzset();
-    
 }
-
-
 
 void task_send_to_server(void *EventQueue)
 {
@@ -170,12 +177,13 @@ void task_send_to_server(void *EventQueue)
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-    
+
     ESP_LOGI(SendToServer_TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
     vTaskDelay(5000 / portTICK_PERIOD_MS);
@@ -189,10 +197,10 @@ void task_send_to_server(void *EventQueue)
         {
             ESP_LOGI(SendToServer_TAG, "Queue Time Out");
             continue;
-        }  
+        }
         // TODO: Check if wifi connected and send properly
         wifi_sendViaHttp(lWifiSendEvent);
     }
-    
+
     vTaskDelete(NULL);
 }

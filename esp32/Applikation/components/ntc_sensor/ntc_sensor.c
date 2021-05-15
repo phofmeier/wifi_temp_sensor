@@ -20,7 +20,7 @@
 
 #define SENSOR_ADC_CHANNEL_1 6
 #define SENSOR_ADC_CHANNEL_2 7
-#define DEFAULT_VREF    1100
+#define DEFAULT_VREF 1100
 
 static const adc_bits_width_t width = ADC_WIDTH_BIT_12;
 static const adc_atten_t atten = ADC_ATTEN_DB_11;
@@ -49,12 +49,12 @@ double tempFromMilliVolt(double voltage_m)
 
 void task_ntc_sensor(void *EventQueue)
 {
-    GuiWifiQueues_t * queues;
+    GuiWifiQueues_t *queues;
     queues = EventQueue;
     ESP_LOGI(NTC_TAG, "NTC Task Started");
     QueueHandle_t xWifiSendEventQueue = queues->wifiSendEvent;
     QueueHandle_t xGuiEventQueue = queues->guiEvent;
-    
+
     gpio_num_t adc_gpio_num_1, adc_gpio_num_2;
     esp_err_t r;
 
@@ -62,7 +62,7 @@ void task_ntc_sensor(void *EventQueue)
     assert(r == ESP_OK);
     r = adc1_pad_get_io_num(SENSOR_ADC_CHANNEL_2, &adc_gpio_num_2);
     assert(r == ESP_OK);
-    
+
     // init
     adc1_config_channel_atten(SENSOR_ADC_CHANNEL_1, atten);
     adc1_config_channel_atten(SENSOR_ADC_CHANNEL_2, atten);
@@ -71,7 +71,7 @@ void task_ntc_sensor(void *EventQueue)
     // calibration
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
     esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, atten, width, DEFAULT_VREF, adc_chars);
-    
+
     vTaskDelay(10000 / portTICK_PERIOD_MS);
 
     ESP_LOGI(NTC_TAG, "ADC initialized. Start reading.");
@@ -81,24 +81,25 @@ void task_ntc_sensor(void *EventQueue)
     TickType_t xLastWakeTime;
     const TickType_t xFrequency = 10 / portTICK_PERIOD_MS;
 
-     // Initialise the xLastWakeTime variable with the current time.
+    // Initialise the xLastWakeTime variable with the current time.
     xLastWakeTime = xTaskGetTickCount();
     WifiSendEvent_t wifiEvent_sensor;
     GuiEvent_t gui_event_s1;
     GuiEvent_t gui_event_s2;
     gui_event_s1.eDataID = GUI_TEMP1_EVENT;
     gui_event_s2.eDataID = GUI_TEMP2_EVENT;
-    
+
     for (int i = 0;; i++)
-    {   
-        uint32_t reading =  adc1_get_raw(SENSOR_ADC_CHANNEL_1);
+    {
+        uint32_t reading = adc1_get_raw(SENSOR_ADC_CHANNEL_1);
         reading = esp_adc_cal_raw_to_voltage(reading, adc_chars);
         sensor_value_mean_1 = sensor_value_mean_1 + 0.1 * ((double)reading - sensor_value_mean_1);
-        reading =  adc1_get_raw(SENSOR_ADC_CHANNEL_2);
+        reading = adc1_get_raw(SENSOR_ADC_CHANNEL_2);
         reading = esp_adc_cal_raw_to_voltage(reading, adc_chars);
         sensor_value_mean_2 = sensor_value_mean_2 + 0.1 * ((double)reading - sensor_value_mean_2);
-        
-        if ((i % 50) == 0){
+
+        if ((i % 50) == 0)
+        {
             gui_event_s1.lDataValue = tempFromMilliVolt(sensor_value_mean_1);
             gui_event_s2.lDataValue = tempFromMilliVolt(sensor_value_mean_2);
             xQueueSendToBack(xGuiEventQueue, &gui_event_s1, 0);
@@ -107,17 +108,17 @@ void task_ntc_sensor(void *EventQueue)
 
         if (i >= 100)
         {
-            struct timeval te; 
+            struct timeval te;
             gettimeofday(&te, NULL);
-            long long ts_us = te.tv_sec*1000000LL + te.tv_usec;
+            long long ts_us = te.tv_sec * 1000000LL + te.tv_usec;
             wifiEvent_sensor.lTimestamp = ts_us;
             wifiEvent_sensor.lValueSensor1 = tempFromMilliVolt(sensor_value_mean_1);
             wifiEvent_sensor.lValueSensor2 = tempFromMilliVolt(sensor_value_mean_2);
             xQueueSendToBack(xWifiSendEventQueue, &wifiEvent_sensor, 0);
-           
+
             i = 0;
         }
-        
+
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
 }
