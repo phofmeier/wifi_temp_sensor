@@ -105,15 +105,14 @@ void task_ntc_sensor(void *EventQueue)
             xQueueSendToBack(xGuiEventQueue, &gui_event_s2, 0);
         }
 
-        if (i >= 500)
+        if (i >= 100)
         {
-            // TODO(peter) send both data values together
             struct timeval te; 
             gettimeofday(&te, NULL);
-            long long ts_ms = te.tv_sec*1000LL + te.tv_usec/1000;
-            wifiEvent_sensor.lTimestamp = ts_ms;
-            wifiEvent_sensor.lValueSensor1 = sensor_value_mean_1;
-            wifiEvent_sensor.lValueSensor2 = sensor_value_mean_2;
+            long long ts_us = te.tv_sec*1000000LL + te.tv_usec;
+            wifiEvent_sensor.lTimestamp = ts_us;
+            wifiEvent_sensor.lValueSensor1 = tempFromMilliVolt(sensor_value_mean_1);
+            wifiEvent_sensor.lValueSensor2 = tempFromMilliVolt(sensor_value_mean_2);
             xQueueSendToBack(xWifiSendEventQueue, &wifiEvent_sensor, 0);
            
             i = 0;

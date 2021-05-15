@@ -95,7 +95,7 @@ void wifi_init_sta(void)
 
 void wifi_sendViaHttp(WifiSendEvent_t sendEvent) {
     esp_http_client_config_t config = {
-            .url = "http://192.168.2.104/saveData.php"
+            .url = "http://192.168.2.103:8080/telegraf"
         };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     // Format value
@@ -104,26 +104,45 @@ void wifi_sendViaHttp(WifiSendEvent_t sendEvent) {
     char value_string_2[16];
     snprintf(value_string_2, 16, "%.2f", sendEvent.lValueSensor2);
     // Format Time
+    bool time_valid = false;
     char time_string[40];
+    if(sendEvent.lTimestamp > 1000000000) {
     snprintf(time_string, 40, "%lld", sendEvent.lTimestamp);
-
+    time_valid = true;
+    }
     
     // char sendString[80] = "http://192.168.2.104/saveData.php?time=223456&value=50";
-    char sendString[100] = "http://192.168.2.103/saveData.php?time=";
-    strcat(sendString, time_string);
-    strcat(sendString, "&value1=");
-    strcat(sendString, value_string_1);
-    strcat(sendString, "&value2=");
-    strcat(sendString, value_string_2);
-    esp_http_client_set_url(client, sendString);
-    // esp_http_client_set_method(client, HTTP_METHOD_GET);
-    // esp_http_client_set_post_field(client, post_data, strlen(post_data));
+    //char sendString[100] = "http://192.168.2.103/saveData.php?time=";
+    char url[35] = "http://192.168.2.103:8080/telegraf";
+    //strcat(sendString, time_string);
+    //strcat(sendString, "&value1=");
+    //strcat(sendString, value_string_1);
+    //strcat(sendString, "&value2=");
+    //strcat(sendString, value_string_2);
+    esp_http_client_set_url(client, url);
+    esp_http_client_set_method(client, HTTP_METHOD_POST);
+    char data[160] = "Measurement,device=TempSens,Sensor=1 value=";
+    strcat(data, value_string_1);
+    if(time_valid){
+    strcat(data, " ");
+    strcat(data, time_string);
+    strcat(data, "000");
+    }
+    strcat(data, "\nMeasurement,device=TempSens,Sensor=2 value=");
+    strcat(data, value_string_2);
+    if(time_valid) {
+    strcat(data, " ");
+    strcat(data, time_string);
+    strcat(data, "000");
+    }
+    esp_http_client_set_post_field(client, data, strlen(data));
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
         ESP_LOGI(SendToServer_TAG, "HTTP POST Status = %d, content_length = %d",
                 esp_http_client_get_status_code(client),
                 esp_http_client_get_content_length(client));
-        ESP_LOGI(SendToServer_TAG, "SendToServer URL: %s", sendString);
+        ESP_LOGI(SendToServer_TAG, "SendToServer URL: %s", url);
+        ESP_LOGI(SendToServer_TAG, "SendToServer Data: %s", data);
     } else {
         ESP_LOGE(SendToServer_TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
     }
