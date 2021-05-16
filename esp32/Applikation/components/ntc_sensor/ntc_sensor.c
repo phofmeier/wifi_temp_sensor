@@ -47,6 +47,41 @@ double tempFromMilliVolt(double voltage_m)
     return T_kelvin - 273.15;
 }
 
+/**
+ * IIR filter for the measured ADC values
+ */
+double filterADCMeasurement(double reading, double last_value) {
+    return last_value + 0.1 * ((double)reading - last_value);
+}
+
+/**
+ * stateFromMilliVolt
+ * 
+ * Returns the Sensor State from a reading in milliVolt
+ * 
+ * Low: reading < 0.1 V
+ * High: reading > 3 V
+ * OK: between 0.1 V and 3 V
+ * 
+*/
+NtcSensorState_t stateFromMilliVolt(uint32_t measurement)
+{
+    NtcSensorState_t sensor_state;
+    if (measurement < 0.1 * 1e3)
+    {
+        sensor_state = NTC_SENSOR_LOW;
+    }
+    else if (measurement > 3 * 1e3)
+    {
+        sensor_state = NTC_SENSOR_HIGH;
+    }
+    else
+    {
+        sensor_state = NTC_SENSOR_OK;
+    }
+    return sensor_state;
+}
+
 void task_ntc_sensor(void *EventQueue)
 {
     GuiWifiQueues_t *queues;
@@ -54,6 +89,9 @@ void task_ntc_sensor(void *EventQueue)
     ESP_LOGI(NTC_TAG, "NTC Task Started");
     QueueHandle_t xWifiSendEventQueue = queues->wifiSendEvent;
     QueueHandle_t xGuiEventQueue = queues->guiEvent;
+
+    NtcSensorState_t ntc_sensor_1_state = NTC_SENSOR_HIGH;
+    NtcSensorState_t ntc_sensor_2_state = NTC_SENSOR_HIGH;
 
     gpio_num_t adc_gpio_num_1;
     gpio_num_t adc_gpio_num_2;
@@ -89,30 +127,67 @@ void task_ntc_sensor(void *EventQueue)
     gui_event_s2.eDataID = GUI_TEMP2_EVENT;
 
     for (int i = 0;; i++)
-    {
+    {   
+        // Read Sensor 1
         uint32_t reading = adc1_get_raw(SENSOR_ADC_CHANNEL_1);
         reading = esp_adc_cal_raw_to_voltage(reading, adc_chars);
-        sensor_value_mean_1 = sensor_value_mean_1 + 0.1 * ((double)reading - sensor_value_mean_1);
+        NtcSensorState_t newSensorState;
+        newSensorState = stateFromMilliVolt(reading);
+        if (newSensorState == NTC_SENSOR_OK && ntc_sensor_1_state == NTC_SENSOR_OK)
+        {
+            sensor_value_mean_1 = filterADCMeasurement(reading, sensor_value_mean_1);
+        } else
+        {
+            sensor_value_mean_1 = reading;
+            ntc_sensor_1_state = newSensorState;
+        }
+        
+        
+        // Read Sensor 2
         reading = adc1_get_raw(SENSOR_ADC_CHANNEL_2);
         reading = esp_adc_cal_raw_to_voltage(reading, adc_chars);
-        sensor_value_mean_2 = sensor_value_mean_2 + 0.1 * ((double)reading - sensor_value_mean_2);
-
-        if ((i % 50) == 0)
+        newSensorState = stateFromMilliVolt(reading);
+        if (newSensorState == NTC_SENSOR_OK && ntc_sensor_2_state == NTC_SENSOR_OK)
         {
-            gui_event_s1.lDataValue = (int32_t)(tempFromMilliVolt(sensor_value_mean_1) + 0.5);
-            gui_event_s2.lDataValue = (int32_t)(tempFromMilliVolt(sensor_value_mean_2) + 0.5);
+            sensor_value_mean_2 = filterADCMeasurement(reading, sensor_value_mean_2);
+        } else
+        {
+            sensor_value_mean_2 = reading;
+            ntc_sensor_2_state = newSensorState;
+        }
+
+        if ((i % 50) == 0) // Update GUI
+        {
+            if (ntc_sensor_1_state == NTC_SENSOR_OK)
+            {
+                gui_event_s1.lDataValue = (int32_t)(tempFromMilliVolt(sensor_value_mean_1) + 0.5);
+            } else
+            {
+                gui_event_s1.lDataValue = 0;
+            }
             xQueueSendToBack(xGuiEventQueue, &gui_event_s1, 0);
+            
+            if (ntc_sensor_2_state == NTC_SENSOR_OK)
+            {
+                gui_event_s2.lDataValue = (int32_t)(tempFromMilliVolt(sensor_value_mean_2) + 0.5);
+                
+            } else
+            {
+                gui_event_s2.lDataValue = 0;
+            }
             xQueueSendToBack(xGuiEventQueue, &gui_event_s2, 0);
         }
 
-        if (i >= 100)
+        if (i >= 100)  // Send Data via Wifi
         {
             struct timeval te;
             gettimeofday(&te, NULL);
             long long ts_us = te.tv_sec * 1000000LL + te.tv_usec;
             wifiEvent_sensor.lTimestamp = ts_us;
             wifiEvent_sensor.lValueSensor1 = tempFromMilliVolt(sensor_value_mean_1);
+            wifiEvent_sensor.lSensorState1 = ntc_sensor_1_state;
             wifiEvent_sensor.lValueSensor2 = tempFromMilliVolt(sensor_value_mean_2);
+            wifiEvent_sensor.lSensorState2 = ntc_sensor_2_state;
             xQueueSendToBack(xWifiSendEventQueue, &wifiEvent_sensor, 0);
 
             i = 0;

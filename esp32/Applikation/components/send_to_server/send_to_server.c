@@ -22,11 +22,20 @@
 
 #define EXAMPLE_ESP_MAXIMUM_RETRY 10
 
+typedef enum
+{
+    NTC_SENSOR_HIGH,
+    NTC_SENSOR_LOW,
+    NTC_SENSOR_OK
+} NtcSensorState_t;
+
 typedef struct
 {
     long long lTimestamp;
     double lValueSensor1;
+    NtcSensorState_t lSensorState1;
     double lValueSensor2;
+    NtcSensorState_t lSensorState2;
 } WifiSendEvent_t;
 
 /* FreeRTOS event group to signal when we are connected*/
@@ -116,32 +125,35 @@ void wifi_sendViaHttp(WifiSendEvent_t sendEvent)
         time_valid = true;
     }
 
-    // char sendString[80] = "http://192.168.2.104/saveData.php?time=223456&value=50";
-    //char sendString[100] = "http://192.168.2.103/saveData.php?time=";
-    char url[35] = "http://192.168.2.103:8080/telegraf";
-    //strcat(sendString, time_string);
-    //strcat(sendString, "&value1=");
-    //strcat(sendString, value_string_1);
-    //strcat(sendString, "&value2=");
-    //strcat(sendString, value_string_2);
-    esp_http_client_set_url(client, url);
+    //char url[35] = "http://192.168.2.103:8080/telegraf";
+    //esp_http_client_set_url(client, url);
     esp_http_client_set_method(client, HTTP_METHOD_POST);
-    char data[160] = "Measurement,device=TempSens,Sensor=1 value=";
-    strcat(data, value_string_1);
-    if (time_valid)
+    char data[160] = "";
+    if (sendEvent.lSensorState1 == NTC_SENSOR_OK)
     {
-        strcat(data, " ");
-        strcat(data, time_string);
-        strcat(data, "000");
+        strcat(data, "Measurement,device=TempSens,Sensor=1 value=");
+        strcat(data, value_string_1);
+        if (time_valid)
+        {
+            strcat(data, " ");
+            strcat(data, time_string);
+            strcat(data, "000");
+        }
+        strcat(data, "\n");
     }
-    strcat(data, "\nMeasurement,device=TempSens,Sensor=2 value=");
-    strcat(data, value_string_2);
-    if (time_valid)
+
+    if (sendEvent.lSensorState2 == NTC_SENSOR_OK)
     {
-        strcat(data, " ");
-        strcat(data, time_string);
-        strcat(data, "000");
+        strcat(data, "Measurement,device=TempSens,Sensor=2 value=");
+        strcat(data, value_string_2);
+        if (time_valid)
+        {
+            strcat(data, " ");
+            strcat(data, time_string);
+            strcat(data, "000");
+        }
     }
+
     esp_http_client_set_post_field(client, data, strlen(data));
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK)
@@ -149,7 +161,7 @@ void wifi_sendViaHttp(WifiSendEvent_t sendEvent)
         ESP_LOGI(SendToServer_TAG, "HTTP POST Status = %d, content_length = %d",
                  esp_http_client_get_status_code(client),
                  esp_http_client_get_content_length(client));
-        ESP_LOGI(SendToServer_TAG, "SendToServer URL: %s", url);
+        //ESP_LOGI(SendToServer_TAG, "SendToServer URL: %s", url);
         ESP_LOGI(SendToServer_TAG, "SendToServer Data: %s", data);
     }
     else
@@ -199,7 +211,10 @@ void task_send_to_server(void *EventQueue)
             continue;
         }
         // TODO: Check if wifi connected and send properly
-        wifi_sendViaHttp(lWifiSendEvent);
+        if (lWifiSendEvent.lSensorState1 == NTC_SENSOR_OK || lWifiSendEvent.lSensorState2 == NTC_SENSOR_OK)
+        {
+            wifi_sendViaHttp(lWifiSendEvent);
+        }
     }
 
     vTaskDelete(NULL);

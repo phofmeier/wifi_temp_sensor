@@ -89,9 +89,12 @@ void task_gui(void *EventQueue)
             continue;    
         };
         ESP_LOGI(TAG, "Event Arrived");
-        char str[4];
-        sprintf(str, "%*d", 3, lReceivedValue.lDataValue);
-        
+        char str[4] = "---";
+        if (lReceivedValue.lDataValue != 0)
+        {
+            sprintf(str, "%*d", 3, lReceivedValue.lDataValue);
+        } 
+                
         if (lReceivedValue.eDataID == GUI_TEMP1_EVENT)
         {
             u8g2_DrawStr(&u8g2, 32, 16, str);
