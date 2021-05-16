@@ -1,6 +1,7 @@
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
 #include <esp_log.h>
+#include "esp_wifi.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <stdio.h>
@@ -23,7 +24,8 @@
 
 static const char *TAG = "GUI";
 
-typedef enum {
+typedef enum
+{
     GUI_TEMP1_EVENT,
     GUI_TEMP2_EVENT
 } GuiEventID_t;
@@ -33,6 +35,23 @@ typedef struct
     GuiEventID_t eDataID;
     int32_t lDataValue;
 } GuiEvent_t;
+
+
+const int MIN_RSSI = -100;
+/** Anything better than or equal to this will show the max bars. */
+const int MAX_RSSI = -55;
+
+ int calculateSignalLevel(int rssi, int numLevels) {
+  if(rssi <= MIN_RSSI) {
+    return 0;
+  } else if (rssi >= MAX_RSSI) {
+    return numLevels - 1;
+  } else {
+    float inputRange = (MAX_RSSI -MIN_RSSI);
+    float outputRange = (numLevels - 1);
+    return (int)((float)(rssi - MIN_RSSI) * outputRange / inputRange);
+  }
+}
 
 void task_gui(void *EventQueue)
 {
@@ -74,27 +93,39 @@ void task_gui(void *EventQueue)
     {
         u8g2_ClearBuffer(&u8g2);
         // Format Time
-        struct timeval tv; 
+        struct timeval tv;
         gettimeofday(&tv, NULL); // get current time
         time_t nowtime = tv.tv_sec;
         struct tm *nowtm = localtime(&nowtime);
         char time_string[26];
         strftime(time_string, sizeof time_string, "%d.%m.%Y %H:%M", nowtm);
         u8g2_DrawStr(&u8g2, 0, 64, time_string);
-        u8g2_UpdateDisplayArea(&u8g2, 0, 6, 16, 2);
-        
+        //u8g2_UpdateDisplayArea(&u8g2, 0, 6, 16, 2);
+
+        wifi_ap_record_t ap_info;
+        esp_err_t error = esp_wifi_sta_get_ap_info(&ap_info);
+        if (error == ESP_OK)
+        {   
+            char connection_string[26];
+            int wifi_rssi_level = calculateSignalLevel(ap_info.rssi, 5);
+            snprintf(connection_string, 26, "Wifi rssi: %i", wifi_rssi_level);
+            u8g2_DrawStr(&u8g2, 0, 48, connection_string);
+        }
+        u8g2_UpdateDisplayArea(&u8g2, 0, 4, 16, 4);
+
         GuiEvent_t lReceivedValue;
-        if(!xQueueReceive(xGuiEventQueue, &lReceivedValue, pdMS_TO_TICKS(1000))){
+        if (!xQueueReceive(xGuiEventQueue, &lReceivedValue, pdMS_TO_TICKS(1000)))
+        {
             ESP_LOGI(TAG, "Queue Time Out");
-            continue;    
+            continue;
         };
         ESP_LOGI(TAG, "Event Arrived");
         char str[4] = "---";
         if (lReceivedValue.lDataValue != 0)
         {
             sprintf(str, "%*d", 3, lReceivedValue.lDataValue);
-        } 
-                
+        }
+
         if (lReceivedValue.eDataID == GUI_TEMP1_EVENT)
         {
             u8g2_DrawStr(&u8g2, 32, 16, str);
