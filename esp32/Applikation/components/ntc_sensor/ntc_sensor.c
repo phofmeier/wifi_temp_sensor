@@ -55,7 +55,8 @@ void task_ntc_sensor(void *EventQueue)
     QueueHandle_t xWifiSendEventQueue = queues->wifiSendEvent;
     QueueHandle_t xGuiEventQueue = queues->guiEvent;
 
-    gpio_num_t adc_gpio_num_1, adc_gpio_num_2;
+    gpio_num_t adc_gpio_num_1;
+    gpio_num_t adc_gpio_num_2;
     esp_err_t r;
 
     r = adc1_pad_get_io_num(SENSOR_ADC_CHANNEL_1, &adc_gpio_num_1);
@@ -70,9 +71,7 @@ void task_ntc_sensor(void *EventQueue)
 
     // calibration
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, atten, width, DEFAULT_VREF, adc_chars);
-
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
+    esp_adc_cal_characterize(ADC_UNIT_1, atten, width, DEFAULT_VREF, adc_chars);
 
     ESP_LOGI(NTC_TAG, "ADC initialized. Start reading.");
     double sensor_value_mean_1 = 0;
@@ -100,8 +99,8 @@ void task_ntc_sensor(void *EventQueue)
 
         if ((i % 50) == 0)
         {
-            gui_event_s1.lDataValue = tempFromMilliVolt(sensor_value_mean_1);
-            gui_event_s2.lDataValue = tempFromMilliVolt(sensor_value_mean_2);
+            gui_event_s1.lDataValue = (int32_t)(tempFromMilliVolt(sensor_value_mean_1) + 0.5);
+            gui_event_s2.lDataValue = (int32_t)(tempFromMilliVolt(sensor_value_mean_2) + 0.5);
             xQueueSendToBack(xGuiEventQueue, &gui_event_s1, 0);
             xQueueSendToBack(xGuiEventQueue, &gui_event_s2, 0);
         }
