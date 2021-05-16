@@ -49,9 +49,10 @@ double tempFromMilliVolt(double voltage_m)
 
 /**
  * IIR filter for the measured ADC values
+ * Smoothing factor a = dt/tau a = 0.01 = 10ms/1s
  */
 double filterADCMeasurement(double reading, double last_value) {
-    return last_value + 0.1 * ((double)reading - last_value);
+    return last_value + 0.01 * ((double)reading - last_value);
 }
 
 /**
