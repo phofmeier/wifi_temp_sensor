@@ -1,0 +1,3 @@
+#define EXAMPLE_ESP_WIFI_SSID      "SSID"
+#define EXAMPLE_ESP_WIFI_PASS      "PASSWORD"
+

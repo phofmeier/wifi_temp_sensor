@@ -1,0 +1,24 @@
+version: '3'
+services:
+  influxdb:
+    image: influxdb:latest
+    volumes:
+      # Mount for influxdb data directory and configuration
+      - influxdbv2:/root/.influxdbv2
+    ports:
+      - "192.168.2.103:8086:8086"
+  telegraf:
+    image: telegraf:latest
+    links:
+      - influxdb
+    volumes:
+      # Mount for telegraf config
+      - ./telegraf/mytelegraf.conf:/etc/telegraf/telegraf.conf
+    ports: 
+      # Port for http_listener
+      - "192.168.2.103:8080:8080"
+    depends_on:
+      - influxdb
+
+volumes:
+  influxdbv2:
