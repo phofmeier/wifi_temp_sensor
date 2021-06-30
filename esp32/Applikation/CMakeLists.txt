@@ -2,7 +2,8 @@
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.5)
 
-# set(EXTRA_COMPONENT_DIRS /home/peter/repos/wifi_temp_sensor/esp32/Applikation/components)
+set(EXTRA_COMPONENT_DIRS ./components)
+set(EXTRA_COMPONENT_DIRS ./tasks)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(hello-world)
+project(wifi_temp_sensor)
