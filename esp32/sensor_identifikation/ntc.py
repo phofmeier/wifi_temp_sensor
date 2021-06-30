@@ -6,7 +6,6 @@ import casadi as cas
 def R_ntc(R_N, B, T, T_N):
     return R_N * np.exp(B*(1/T-1/T_N))
 
-
 def U_meas(U_ges, R_1, R_2):
 
     return U_ges/(R_1+R_2) * R_2
@@ -16,14 +15,10 @@ def Temp(U_meas, R_1, U_ges, B, R_N, T_N):
     T_kelvin = 1 / (np.log(R_NTC / R_N) / B + 1 / T_N)
     return T_kelvin - 273.15
 
-def OneProTemp(U_meas, R_1, U_ges, B, R_N, T_N):
-    R_NTC = U_meas * R_1 / (U_ges - U_meas)
-    return  (np.log(R_NTC / R_N) / B + 1 / T_N)
-
 def Temp_adc(adc_value, R_1, U_ges, B, R_N, T_N):
     return Temp(U_ges/4096 * adc_value, R_1, U_ges, B, R_N, T_N)
 
-# define measurements constants
+# Check if Sensor is a NTC and find out the Resistance
 
 R_measured = [103e3, 120e3, 70e3, 15.2e3]
 T_measured_C = [25, 20, 33, 74]
@@ -32,8 +27,7 @@ R_N = 103e3
 T_N = 298.15
 U_ges = 3.3
 T_range_C = [0, 200]
-T_Nenn_C = 65
-T_Nenn = T_Nenn_C+273.15
+
 
 
 # Kelvin from Temp
@@ -53,7 +47,10 @@ res = S()
 
 B = res['x'].full()[0]
 
-#Fit R_1
+# Search for the Value of R_1 which minimizes the deviation of Measured Voltage at a specific Temperature
+T_Nenn_C = 65
+T_Nenn = T_Nenn_C + 273.15
+
 R_1 = cas.SX.sym("R_1")
 T_sym = cas.SX.sym("T")
 
@@ -75,27 +72,31 @@ T_C = np.linspace(T_range_C[0], T_range_C[1], num=200)
 print("R_1: %e" % R_1)
 print("B: %e" % B)
 plt.figure()
-plt.plot(T_C, R_ntc(R_N, B, T, T_N), label="R_NTC")
+plt.title("Fitted and Measured Resistance of the NTC")
+plt.plot(T_C, R_ntc(R_N, B, T, T_N), label="R_fitted")
 plt.plot(T_measured_C, R_measured, "x", label="R_measured")
 plt.xlabel("Temp [Grad]")
 plt.ylabel("R [Ohm]")
 plt.legend()
 
-plt.figure()
 U_range = U_meas(U_ges, R_1, R_ntc(R_N, B, T, T_N))
+plt.figure()
+plt.title("Voltage vs. Temperature with optimal Resistance. Vertical line shows the optimal Temperature.")
 plt.plot(T_C, U_range, label="R/NTC")
 plt.vlines(T_Nenn_C, U_range.min(), U_range.max())
 plt.xlabel("Temp [Grad]")
 plt.ylabel("U [V]")
 plt.legend()
 
-# Calibrate Sensor
+
+# Calibrate Sensor from ADC measurements
 
 # measurements
 
 adc_voltage_measured = [2.21634, 2.17343, 1.59904, 1.49781, 0.84637, 0.71773, 0.59042, 0.67618, 0.18674, 0.22936,0.18058,0.16265, 0.31080, 0.35350, 0.51420, 0.54871, 0.69035, 0.74026, 0.93252, 0.97848, 1.14037, 1.22280, 1.62269, 1.66503, 2.68944, 2.70243]
 T_measured = [42, 43, 60, 65, 92, 99, 106, 101, 156, 146, 158, 161, 133, 128, 112, 109, 100, 97, 87, 85, 78, 75, 61, 59, 24, 23]
 
+# Fit Model
 R1 = 24.9e3
 B_sym = cas.SX.sym("B")
 Rn_sym = cas.SX.sym("Rn")
@@ -105,7 +106,7 @@ x0 = [B, 103e3, T_N]
 f = 0
 for T, adc_voltage in zip(T_measured, adc_voltage_measured):
     f += (T-Temp(adc_voltage, R1, U_ges, B_sym, Rn_sym, Tn_sym))**2
-    
+
 f += (Rn_sym-103e3)**2+(Tn_sym-T_N)**2
 nlp = {'x': syms, 'f': f}
 S = cas.nlpsol('S', 'ipopt', nlp)
@@ -118,6 +119,7 @@ Tn = res['x'].full()[2]
 print("B:", B, "R1:", R1, "Rn:", Rn, "Tn:", Tn)
 
 plt.figure()
+plt.title("Fitted Model for measured Voltage vs. Temperature")
 adc_range = np.linspace(min(adc_voltage_measured), max(adc_voltage_measured))
 plt.plot(adc_range, Temp(adc_range, R1, U_ges, B, Rn, Tn), label="Fitted Model")
 plt.plot(adc_voltage_measured, T_measured, 'x', label="Measured")

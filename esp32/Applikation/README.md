@@ -1,5 +1,4 @@
-# Hello World Example
+# ESP32 Application
 
-Starts a FreeRTOS task to print "Hello World"
-
-See the README.md file in the upper level 'examples' directory for more information about examples.
+This folder Contains the application software for the ESP32.
+The [esp idf](https://github.com/espressif/esp-idf) needs to be used for cross compiling

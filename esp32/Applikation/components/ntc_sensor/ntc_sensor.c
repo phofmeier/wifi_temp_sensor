@@ -1,8 +1,4 @@
-/* ADC2 Example
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
+/* Read the sensor values and calculate the Temperature
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,13 +53,13 @@ double filterADCMeasurement(double reading, double last_value) {
 
 /**
  * stateFromMilliVolt
- * 
+ *
  * Returns the Sensor State from a reading in milliVolt
- * 
+ *
  * Low: reading < 0.1 V
  * High: reading > 3 V
  * OK: between 0.1 V and 3 V
- * 
+ *
 */
 NtcSensorState_t stateFromMilliVolt(uint32_t measurement)
 {
@@ -128,7 +124,7 @@ void task_ntc_sensor(void *EventQueue)
     gui_event_s2.eDataID = GUI_TEMP2_EVENT;
 
     for (int i = 0;; i++)
-    {   
+    {
         // Read Sensor 1
         uint32_t reading = adc1_get_raw(SENSOR_ADC_CHANNEL_1);
         reading = esp_adc_cal_raw_to_voltage(reading, adc_chars);
@@ -142,8 +138,8 @@ void task_ntc_sensor(void *EventQueue)
             sensor_value_mean_1 = reading;
             ntc_sensor_1_state = newSensorState;
         }
-        
-        
+
+
         // Read Sensor 2
         reading = adc1_get_raw(SENSOR_ADC_CHANNEL_2);
         reading = esp_adc_cal_raw_to_voltage(reading, adc_chars);
@@ -167,11 +163,11 @@ void task_ntc_sensor(void *EventQueue)
                 gui_event_s1.lDataValue = 0;
             }
             xQueueSendToBack(xGuiEventQueue, &gui_event_s1, 0);
-            
+
             if (ntc_sensor_2_state == NTC_SENSOR_OK)
             {
                 gui_event_s2.lDataValue = (int32_t)(tempFromMilliVolt(sensor_value_mean_2) + 0.5);
-                
+
             } else
             {
                 gui_event_s2.lDataValue = 0;

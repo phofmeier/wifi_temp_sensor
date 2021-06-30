@@ -41,7 +41,7 @@ typedef struct
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
 
-/* The event group allows multiple bits for each event, but we only care about one event 
+/* The event group allows multiple bits for each event, but we only care about one event
  * - are we connected to the AP with an IP? */
 const int WIFI_CONNECTED_BIT = BIT0;
 
@@ -125,8 +125,6 @@ void wifi_sendViaHttp(WifiSendEvent_t sendEvent)
         time_valid = true;
     }
 
-    //char url[35] = "http://192.168.2.103:8080/telegraf";
-    //esp_http_client_set_url(client, url);
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     char data[160] = "";
     if (sendEvent.lSensorState1 == NTC_SENSOR_OK)
@@ -161,7 +159,6 @@ void wifi_sendViaHttp(WifiSendEvent_t sendEvent)
         ESP_LOGI(SendToServer_TAG, "HTTP POST Status = %d, content_length = %d",
                  esp_http_client_get_status_code(client),
                  esp_http_client_get_content_length(client));
-        //ESP_LOGI(SendToServer_TAG, "SendToServer URL: %s", url);
         ESP_LOGI(SendToServer_TAG, "SendToServer Data: %s", data);
     }
     else
