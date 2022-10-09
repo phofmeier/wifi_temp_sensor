@@ -9,7 +9,7 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
-#include "nvs_flash.h"
+#include <nvs_flash.h>
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
@@ -49,19 +49,19 @@ const int WIFI_CONNECTED_BIT = BIT0;
 static const char *SendToServer_TAG = "SendToServer";
 
 static int s_retry_num = 0;
-
+esp_err_t wifi_connect_ret = ESP_ERR_WIFI_CONN;
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
-        esp_wifi_connect();
+        wifi_connect_ret = esp_wifi_connect();
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
         if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY)
         {
-            esp_wifi_connect();
+            wifi_connect_ret = esp_wifi_connect();
             xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             s_retry_num++;
             ESP_LOGI(SendToServer_TAG, "retry to connect to the AP");
@@ -109,7 +109,7 @@ void wifi_init_sta(void)
 void wifi_sendViaHttp(WifiSendEvent_t sendEvent)
 {
     esp_http_client_config_t config = {
-        .url = "http://192.168.2.103:8080/telegraf"};
+        .url = "http://192.168.2.106:5000/input"};
     esp_http_client_handle_t client = esp_http_client_init(&config);
     // Format value
     char value_string_1[16];
@@ -184,7 +184,7 @@ void task_send_to_server(void *EventQueue)
     QueueHandle_t xWifiSendEventQueue = EventQueue;
     ESP_LOGI(SendToServer_TAG, "SendToServer started");
 
-    //Initialize NVS
+    // Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
@@ -198,6 +198,7 @@ void task_send_to_server(void *EventQueue)
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     ESP_LOGI(SendToServer_TAG, "Push to server");
     wifi_init_sntp();
+    vTaskDelay(10000 / portTICK_PERIOD_MS);
     for (;;)
     {
         WifiSendEvent_t lWifiSendEvent;
@@ -208,7 +209,7 @@ void task_send_to_server(void *EventQueue)
             continue;
         }
         // TODO: Check if wifi connected and send properly
-        if (lWifiSendEvent.lSensorState1 == NTC_SENSOR_OK || lWifiSendEvent.lSensorState2 == NTC_SENSOR_OK)
+        if ( wifi_connect_ret == ESP_OK && (lWifiSendEvent.lSensorState1 == NTC_SENSOR_OK || lWifiSendEvent.lSensorState2 == NTC_SENSOR_OK))
         {
             wifi_sendViaHttp(lWifiSendEvent);
         }
